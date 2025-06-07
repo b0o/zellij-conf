@@ -1,5 +1,17 @@
 themes {
     lavi {
+        bg "#25213B"
+        fg "#FFF1E0"
+        red "#F2637E"
+        green "#7CF89C"
+        blue "#7583FF"
+        yellow "#FFD080"
+        magenta "#DC91FF"
+        orange "#ff9969"
+        cyan "#2BEDC0"
+        black "#25213B"
+        white "#FFF1E0"
+
         text_unselected {
             base "#FFF1E0"
             background "#25213B"
@@ -113,14 +125,14 @@ themes {
             emphasis_3 "#80BDFF"
         }
         multiplayer_user_colors {
-            player_1 "#F2637E"
-            player_2 "#7CF89C"
+            player_1 "#7583FF"
+            player_2 "#A872FB"
             player_3 "#FFD080"
-            player_4 "#7583FF"
-            player_5 "#DC91FF"
-            player_6 "#2BEDC0"
-            player_7 "#ff9969"
-            player_8 "#A872FB"
+            player_4 "#2BEDC0"
+            player_5 "#ff9969"
+            player_6 "#F2637E"
+            player_7 "#7CF89C"
+            player_8 "#DC91FF"
             player_9 "#3FC4C4"
             player_10 "#B891FF"
         }

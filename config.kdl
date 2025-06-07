@@ -24,12 +24,13 @@ keybinds clear-defaults=true {
     }
     shared_among "normal" "locked" {
         bind "Ctrl /" { ToggleFloatingPanes; }
-
+        bind "Ô" { ToggleFloatingPanes; } // Ctrl /
+        bind "Ö" { ToggleFloatingPanes; } // Ctrl Shift /
         bind "©" { GoToPreviousTab; } // Ctrl Alt '
         bind "¨" { GoToNextTab; } // Ctrl Alt ;
         bind "±" { MoveTab "left"; } // Ctrl Alt "
         bind "°" { MoveTab "right"; } // Ctrl Alt :
-        bind "²" { NewTab; SwitchToMode "locked"; } // Ctrl Alt Enter
+        bind "²" { NewTab { name ""; }; SwitchToMode "locked"; } // Ctrl Alt Enter
         bind "Á"  { GoToTab 1; } // Ctrl Alt Shift 1
         bind "Â"  { GoToTab 2; } // Ctrl Alt Shift 2
         bind "Ã"  { GoToTab 3; } // Ctrl Alt Shift 3
@@ -40,7 +41,8 @@ keybinds clear-defaults=true {
         bind "È"  { GoToTab 8; } // Ctrl Alt Shift 8
         bind "É"  { GoToTab 9; } // Ctrl Alt Shift 9
 
-        bind "Alt Shift A" { FocusPreviousPane; }
+        // bind "Alt Shift A" { FocusPreviousPane; }
+        bind "Ü" { ToggleTab; }
 
         bind "Alt Shift J" { MoveFocus "down"; }
         bind "Alt Shift K" { MoveFocus "up"; }
@@ -259,9 +261,7 @@ plugins {
     }
     plugin-manager location="zellij:plugin-manager"
     session-manager location="zellij:session-manager"
-    status-bar location="zellij:status-bar"
     strider location="zellij:strider"
-    tab-bar location="zellij:tab-bar"
     welcome-screen location="zellij:session-manager" {
         welcome_screen true
     }
@@ -272,10 +272,23 @@ plugins {
         cancel_key "Esc"
     }
     zj-forgot location="https://github.com/karimould/zellij-forgot/releases/download/0.4.2/zellij_forgot.wasm"
+    zjstatus location="https://github.com/dj95/zjstatus/releases/download/v0.20.2/zjstatus.wasm"
+    zjstatus-hints location="https://github.com/b0o/zjstatus-hints/releases/latest/download/zjstatus-hints.wasm" {
+        max_length "0"
+        overflow_str ""
+        pipe_name "zjstatus_hints"
+    }
 }
 
-// load_plugins {
-// }
+load_plugins {
+    zjstatus-hints
+}
+
+ui {
+    pane_frames {
+        rounded_corners true
+    }
+}
 
 theme "lavi"
 default_mode "locked"
