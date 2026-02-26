@@ -1,0 +1,226 @@
+#!/usr/bin/env -S nu --stdin
+
+use types/kdl.nu *
+use zellij *
+use layout *
+
+export def display-error [msg: string] {
+  print -e $"Error: ($msg)"
+  input -n 1 'Press any key to continue...'
+  exit 1
+}
+
+export def base-layout [
+  --zjstatus-opts: record = {} # Options for the zjstatus plugin
+  ...children: record # Children of the root node
+] {
+  # topiary: disable
+  (root
+    (layout
+      (default-tab-template
+        (children)
+        (pane --size=1 --borderless
+          (plugin zjstatus $zjstatus_opts))
+      )
+      ...$children))
+}
+
+# Create a new Zellij tab with custom layout
+export def new-tab-layout [
+  cmd?: string # Command to run
+  ...args: string # Arguments for the command
+  --name: string # Tab name
+  --cwd: string # Working directory
+  --borderless # Whether to hide the pane border
+] {
+  # topiary: disable
+  (base-layout
+   --zjstatus-opts { hide_frame_for_single_pane: $borderless }
+    (tab --cwd=$cwd --name=$name
+      (pane --command=$cmd --args=$args --borderless=$borderless --close-on-exit=($cmd | is-not-empty))))
+}
+
+# Generate the default tab template layout
+export def "main default-tab-template" [] {
+  (base-layout (tab --name="")) | to kdl -v 1
+}
+
+# Select a Comark bookmark and open it in a new Zellij tab or session
+export def "main new-tab comark" [
+  ...query: string # Query string
+] {
+  use comark
+  let query = if ($query | is-not-empty) { $query | str join " " }
+  let result = (comark fzf --record $query)
+  if ($result | is-empty) {
+    return
+  }
+  if not ($result.path | path exists) {
+    display-error "Comark bookmark not found"
+  }
+  let alias = $result.alias
+  let dest = $result.path | path expand
+  if not ($dest | path exists) {
+    display-error "Destination file not found"
+  }
+  let layout = if ($dest | path type) == "dir" {
+    new-tab-layout --cwd=$dest --name=$alias
+  } else {
+    let parent = ($dest | path dirname)
+    new-tab-layout --cwd=$parent --name=$alias nvim $dest
+  }
+  with-layout $layout {|path|
+    if (in-zellij) {
+      zellij action new-tab --cwd $dest --layout $path
+    } else {
+      zellij --new-session-with-layout $path
+    }
+  }
+}
+
+# Select a Git worktree and open it in a new Zellij tab or session
+export def "main new-tab git-worktree" [
+  --cwd: string # Working directory
+  ...query: string # Query string
+] {
+  if ($cwd | is-not-empty) {
+    cd $cwd
+  }
+  use git/worktree.nu *
+  use comark
+  let query = if ($query | is-not-empty) { $query | str join " " }
+  let selection = try { gw-select --header "New tab for worktree" $query } catch {|e|
+    display-error $e.msg
+  }
+  if $selection == null {
+    return
+  }
+  let worktree_name = $selection.branch? | default $selection.worktree
+  let repo_name = $selection.root | path basename
+  let bookmark_name = (
+    comark find $selection.path | first | get -o name | default $repo_name
+  )
+  let tab_name = $"($bookmark_name) ($worktree_name)"
+  let layout = new-tab-layout --cwd=$selection.path --name=$tab_name
+  with-layout $layout {|path|
+    if (in-zellij) {
+      zellij action new-tab --cwd $selection.path --layout $path
+    } else {
+      zellij --new-session-with-layout $path
+    }
+  }
+}
+
+# Run a command in a new Zellij tab or session
+export def "main new-tab cmd" [
+  --name: string # Name of the tab
+  --cwd: string # Working directory
+  --borderless # Whether to hide the pane border
+  cmd?: string # Command to run
+  ...args: string # Arguments for the command
+] {
+  let layout = new-tab-layout --name=$name --cwd=$cwd --borderless=$borderless $cmd ...$args
+  with-layout $layout {|path|
+    if (in-zellij) {
+      zellij action new-tab --cwd ($cwd | default $env.PWD) --layout $path
+    } else {
+      zellij --new-session-with-layout $path
+    }
+  }
+}
+
+# Create a new Zellij session with multiple tabs
+export def "main new-session" [
+  ...tabs: any # Tab definitions: {name?, cwd?, cmd?, args?, borderless?}
+] {
+  if ($tabs | is-empty) {
+    display-error "At least one tab definition is required"
+  }
+  let tab_nodes = (
+    $tabs | each {|t|
+      let t = if ($t | describe) == "string" { $t | from nuon } else { $t }
+      let cmd = $t.cmd? | default null
+      let args = $t.args? | default []
+      let cwd = $t.cwd? | default null
+      let name = $t.name? | default null
+      let borderless = $t.borderless? | default false
+      (
+        tab --cwd=$cwd --name=$name
+        (pane --command=$cmd --args=$args --borderless=$borderless --close-on-exit=($cmd | is-not-empty))
+      )
+    }
+  )
+  let layout = (base-layout ...$tab_nodes)
+  with-layout $layout {|path|
+    zellij --new-session-with-layout $path
+  }
+}
+
+# Select a tab and switch to it
+export def "main tab-select" [
+  ...query: string # Query string
+] {
+  let tabs = zellij-tools tree | from json | get tabs | sort-by position
+  if ($tabs | is-empty) {
+    display-error "No tabs found"
+  }
+  let active_tab = $tabs | where $it.active | first
+  let tab_panes = (
+    zellij-tools tree
+    | from json
+    | get tabs
+    | reduce --fold {} {|tab acc|
+      $acc | (
+        insert
+        ($tab.stable_id | into string)
+        (
+          $tab
+          | select tiled_panes? floating_panes?
+          | values
+          | flatten
+          | where not ($it.is_plugin or $it.is_suppressed or $it.exited)
+          | let panes | $panes | length | let count | $panes
+          | enumerate
+          | each {|pair|
+            let i = $pair | get index
+            let pane = $pair | get item
+            let prefix = if ($i == $count - 1) { "└" } else { "├" }
+            $" ($prefix) ($pane.title)"
+          }
+          | str join "\n"
+        )
+      )
+    }
+  )
+  let query = if ($query | is-not-empty) { $query | str join " " } else { "" }
+  let res = (
+    $tabs
+    | sk
+    --query $query
+    --format (
+      {
+        let tab = $in;
+        $"($tab.position + 1) (if ($tab.active) { $"[($tab.name)]" } else { $tab.name })"
+      }
+    )
+    --preview (
+      {
+        let tab = $in
+        [
+          $" ($tab.name)"
+          ($tab_panes | get -o ($tab.stable_id | into string))
+        ] | str join "\n"
+      }
+    )
+    --no-sort
+    --preview-window="right:75%"
+  )
+  if ($res | is-not-empty) {
+    zellij action go-to-tab ($res.position + 1)
+  }
+}
+
+# Helper script to generate preset Zellij layouts
+def main [] {
+  ^$env.CURRENT_FILE "--help"
+}

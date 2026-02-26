@@ -1,0 +1,34 @@
+scratchpads {
+  term {
+    title ""
+    command "nu"
+    // width "100%"
+    width "60%"
+    height "50%"
+    // y "0"
+    // origin "bottom" "center"
+  }
+  tab-select {
+    title "Select Tab"
+    command "sh" "-c" "$XDG_CONFIG_HOME/zellij/bin/new-tab-menu tab-select"
+    width "100"
+    height "16"
+  }
+  comark-nav {
+    title "Select Bookmark"
+    command "sh" "-c" "$XDG_CONFIG_HOME/zellij/bin/new-tab-menu comark"
+    width "120"
+    height "50%"
+  }
+  opencode {
+    title "OpenCode"
+    command "direnv" "exec" "." "opencode"
+    width "50%"
+    height "80%"
+    y "5%"
+    origin "top" "center"
+  }
+  // claude {
+  //   command "direnv" "exec" "." "claude-bun"
+  // }
+}

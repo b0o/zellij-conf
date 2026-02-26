@@ -1,0 +1,25 @@
+#!/usr/bin/env -S nu --stdin
+
+use ./layout
+
+# TODO: remove this file
+
+# Select a Comark bookmark and open it in a new Zellij tab or session
+def --wrapped "main comark" [...args] {
+  layout main new-tab comark ...$args
+}
+
+# Select a Git worktree and open it in a new Zellij tab or session
+def --wrapped "main git-worktree" [...args] {
+  layout main new-tab git-worktree ...$args
+}
+
+# Select a tab and switch to it
+def --wrapped "main tab-select" [...args] {
+  layout main tab-select ...$args
+}
+
+# Helper script to create a new Zellij tab based on user input
+def main [] {
+  ^$env.CURRENT_FILE "--help"
+}
